@@ -28,9 +28,14 @@ import {
   Download,
   Plus,
   RefreshCw,
+  GitFork,
 } from 'lucide-react';
 import { extractDocumentFields } from '../../services/ocrService';
 import { LandDocument } from '../../types';
+import { MutationLineageModal } from '../common/MutationLineageModal';
+import { TwoFactorAuthModal } from '../common/TwoFactorAuthModal';
+import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
+import { downloadDilrmpXml } from '../../services/dilrmpService';
 
 export type PipelineStage = 'digitization' | 'manual-verification' | 'gis-validation' | 'approvals';
 
@@ -45,6 +50,7 @@ export const ProcessingValidationPage: React.FC = () => {
     updateDocumentField,
     submitOfficerDecision,
     uploadNewDocument,
+    userProfile,
   } = useApp();
 
   // Pick current document: prioritize explicitly selected doc, then newly uploaded doc (starts with 'doc-'), then under-verification, then first doc
@@ -66,6 +72,9 @@ export const ProcessingValidationPage: React.FC = () => {
   const [highlightedField, setHighlightedField] = useState<string | null>(null);
   const [editingFieldKey, setEditingFieldKey] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState<string>('');
+  const [isLineageModalOpen, setIsLineageModalOpen] = useState<boolean>(false);
+  const [isTwoFactorOpen, setIsTwoFactorOpen] = useState<boolean>(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
 
   // Files Upload state
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -176,7 +185,7 @@ export const ProcessingValidationPage: React.FC = () => {
         executionDate: { fieldName: 'Execution Date', fieldKey: 'executionDate', value: result.executionDate.value, confidence: result.executionDate.confidence, confidenceScore: result.executionDate.score, isVerified: true },
       };
 
-      const newDocId = uploadNewDocument({
+      const newDocId = await uploadNewDocument({
         title: `${result.documentType.value || 'Land Deed'} — Survey ${result.surveyNumber.value || 'N/A'}`,
         documentType: (result.documentType.value as LandDocument['documentType']) || 'Patta / RoR',
         ownerName: result.ownerName.value,
@@ -193,7 +202,7 @@ export const ProcessingValidationPage: React.FC = () => {
         fileType: file.type,
       });
 
-      selectDocument(newDocId);
+      selectDocument(String(newDocId));
       setUploadProgress(100);
       setUploadStepLabel('Extraction complete!');
       setUploadNotification(`Document "${file.name}" processed with live OCR! All attributes indexed.`);
@@ -304,14 +313,39 @@ export const ProcessingValidationPage: React.FC = () => {
         </div>
 
         {/* Status and Action Buttons */}
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
           <StatusBadge status={currentDoc?.status || 'DIGITIZED'} size="sm" />
+          <button
+            onClick={() => setIsLineageModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs font-semibold transition-colors"
+            title="Inspect historical deed lineage graph and mutation audit"
+          >
+            <GitFork className="w-3.5 h-3.5" />
+            <span>Title Lineage (DAG)</span>
+          </button>
+          <button
+            onClick={() => downloadDilrmpXml(currentDoc)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-800 text-xs font-semibold transition-colors"
+            title="Download official DILRMP XML schema"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>DILRMP XML</span>
+          </button>
           <button
             onClick={() => navigateTo('upload')}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-blue-200 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold transition-colors"
           >
             <FileUp className="w-3.5 h-3.5" />
             <span>{t('uploadNewDocument', 'Upload New Document')}</span>
+          </button>
+          <button
+            id="btn-delete-officer-doc"
+            onClick={() => setIsDeleteModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold transition-colors cursor-pointer"
+            title="Permanently delete this land record"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>{t('deleteLandRecord')}</span>
           </button>
         </div>
       </div>
@@ -891,8 +925,8 @@ export const ProcessingValidationPage: React.FC = () => {
                   </button>
                   <button
                     id="btn-submit-decision"
-                    onClick={handleFinalDecisionSubmit}
-                    className="px-6 py-2.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 shadow-xs"
+                    onClick={() => setIsTwoFactorOpen(true)}
+                    className="px-6 py-2.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs sm:text-sm font-semibold transition-colors flex items-center gap-2 shadow-xs cursor-pointer"
                   >
                     <ShieldCheck className="w-4 h-4" />
                     <span>{t('submitOfficialDecision', 'Submit Official Decision')}</span>
@@ -903,6 +937,30 @@ export const ProcessingValidationPage: React.FC = () => {
           </div>
         </div>
       )}
+      {/* Title Lineage & Mutation DAG Modal */}
+      <MutationLineageModal
+        isOpen={isLineageModalOpen}
+        onClose={() => setIsLineageModalOpen(false)}
+        document={currentDoc}
+      />
+
+      {/* 2FA Challenge Modal for High-Privilege Officer Decision */}
+      <TwoFactorAuthModal
+        isOpen={isTwoFactorOpen}
+        onClose={() => setIsTwoFactorOpen(false)}
+        onSuccess={handleFinalDecisionSubmit}
+        actionTitle={`Submit ${decisionAction} Decision for Survey #${currentDoc.surveyNumber}`}
+        officerName={userProfile?.fullName || 'Village Administrative Officer (VAO)'}
+        phoneNumber={userProfile?.phone || (userProfile as any)?.phoneNumber || '+91 94440 XXXXX'}
+      />
+
+      {/* Delete Record Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        document={currentDoc}
+        onSuccess={() => navigateTo('queue')}
+      />
     </div>
   );
 };

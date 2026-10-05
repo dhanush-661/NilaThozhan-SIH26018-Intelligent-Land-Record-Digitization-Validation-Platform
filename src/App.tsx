@@ -3,6 +3,7 @@ import { AppProvider, useApp } from './context/AppContext';
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
 import { UniversalSearchModal } from './components/common/UniversalSearchModal';
+import { SessionLockModal } from './components/common/SessionLockModal';
 
 // Role-specific view components
 import { MyDocumentsPage } from './components/citizen/MyDocumentsPage';
@@ -32,6 +33,8 @@ const MainAppContent: React.FC = () => {
     currentRole,
     activeTab,
     t,
+    isWorkstationLocked,
+    unlockWorkstation,
   } = useApp();
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -128,6 +131,9 @@ const MainAppContent: React.FC = () => {
 
       {/* Universal Search Modal (Hot-keyed / Search button triggered) */}
       <UniversalSearchModal />
+
+      {/* Workstation Security Lock Screen Modal */}
+      <SessionLockModal isLocked={isWorkstationLocked} onUnlock={unlockWorkstation} />
     </div>
   );
 };

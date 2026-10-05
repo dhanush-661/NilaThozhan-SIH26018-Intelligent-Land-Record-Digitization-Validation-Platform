@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
 import { UserRole } from '../../types';
-import { SUPPORTED_LANGUAGES, AppLanguage } from '../../i18n/translations';
+import { INDIAN_STATES } from '../../i18n/stateLanguages';
+import { SUPPORTED_LANGUAGES } from '../../i18n/translations';
 import {
   Bell,
   Search,
@@ -10,6 +11,8 @@ import {
   Menu,
   Check,
   LogOut,
+  Lock,
+  Languages,
 } from 'lucide-react';
 import { NotificationDrawer } from '../common/NotificationDrawer';
 
@@ -21,11 +24,15 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
   const {
     currentRole,
     currentProfile,
+    userProfile,
     activeTab,
     setRole,
     signOut,
+    lockWorkstation,
     unreadNotificationCount,
     openSearchModal,
+    selectedState,
+    setSelectedState,
     currentLanguage,
     setLanguage,
     t,
@@ -33,7 +40,26 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
 
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  const [isStateDropdownOpen, setIsStateDropdownOpen] = useState(false);
   const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        !target.closest('#header-language-btn') &&
+        !target.closest('#header-state-jurisdiction-btn') &&
+        !target.closest('#user-profile-menu-btn')
+      ) {
+        setIsLangDropdownOpen(false);
+        setIsStateDropdownOpen(false);
+        setIsRoleDropdownOpen(false);
+      }
+    };
+    document.addEventListener('click', handleGlobalClick);
+    return () => document.removeEventListener('click', handleGlobalClick);
+  }, []);
 
   // Dynamic translated page title
   const getPageTitle = (): string => {
@@ -89,8 +115,6 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
       icon: '🏛️',
     },
   ];
-
-  const currentLangObj = SUPPORTED_LANGUAGES.find((l) => l.code === currentLanguage) || SUPPORTED_LANGUAGES[0];
 
   return (
     <>
@@ -152,20 +176,27 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             <Search className="w-4 h-4" />
           </button>
 
-          {/* LANGUAGE SELECTOR DROPDOWN */}
-          <div className="relative">
+          {/* DEDICATED LANGUAGE SWITCHER */}
+          <div className="relative notranslate">
             <button
-              id="lang-switcher-btn"
+              id="header-language-btn"
+              type="button"
               onClick={() => {
                 setIsLangDropdownOpen(!isLangDropdownOpen);
+                setIsStateDropdownOpen(false);
                 setIsRoleDropdownOpen(false);
               }}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-all shadow-2xs"
-              title="Change Language / மொழி மாற்று / भाषा बदलें"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-all shadow-2xs cursor-pointer"
+              title="Change Display Language"
             >
-              <Globe className="w-3.5 h-3.5 text-emerald-600" />
-              <span className="font-bold text-slate-800">{currentLangObj.nativeLabel}</span>
-              <ChevronDown className="w-3 h-3 text-slate-400" />
+              <Languages className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span className="font-bold text-slate-800 hidden xs:inline">
+                {SUPPORTED_LANGUAGES.find((l) => l.code === currentLanguage)?.nativeLabel || 'Language'}
+              </span>
+              <span className="text-[10px] font-extrabold uppercase px-1 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                {currentLanguage.toUpperCase()}
+              </span>
+              <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
             </button>
 
             {isLangDropdownOpen && (
@@ -173,30 +204,29 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
                 className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-50 animate-in fade-in zoom-in-95"
                 onClick={() => setIsLangDropdownOpen(false)}
               >
-                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
-                  Select Language / மொழி
+                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 flex items-center justify-between">
+                  <span>Display Language</span>
+                  <span className="text-[9px] text-emerald-600 font-semibold">Saved</span>
                 </div>
                 {SUPPORTED_LANGUAGES.map((lang) => {
                   const isSelected = currentLanguage === lang.code;
                   return (
                     <button
                       key={lang.code}
-                      onClick={() => {
-                        setLanguage(lang.code as AppLanguage);
-                        setIsLangDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-emerald-50 transition-colors ${
-                        isSelected ? 'bg-emerald-50/70 text-emerald-700 font-bold' : 'text-slate-700'
+                      type="button"
+                      onClick={() => setLanguage(lang.code)}
+                      className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-emerald-50 transition-colors cursor-pointer ${
+                        isSelected ? 'bg-emerald-50/80 text-emerald-800 font-bold' : 'text-slate-700'
                       }`}
                     >
                       <div className="flex items-center gap-2">
-                        <span>{lang.flag}</span>
+                        <span className="text-base">{lang.flag}</span>
                         <div>
                           <span className="font-semibold block">{lang.nativeLabel}</span>
                           <span className="text-[10px] text-slate-400">{lang.label}</span>
                         </div>
                       </div>
-                      {isSelected && <Check className="w-4 h-4 text-emerald-600" />}
+                      {isSelected && <Check className="w-4 h-4 text-emerald-600 shrink-0" />}
                     </button>
                   );
                 })}
@@ -204,87 +234,179 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             )}
           </div>
 
-          {/* ROLE SWITCHER DROPDOWN (RBAC Experience) */}
+          {/* CADASTRAL JURISDICTION SELECTOR */}
+          <div className="relative notranslate">
+            <button
+              id="header-state-jurisdiction-btn"
+              onClick={() => {
+                setIsStateDropdownOpen(!isStateDropdownOpen);
+                setIsLangDropdownOpen(false);
+                setIsRoleDropdownOpen(false);
+              }}
+              className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-all shadow-2xs cursor-pointer"
+              title={`Cadastral Jurisdiction: ${selectedState.name}`}
+            >
+              <Globe className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 shrink-0">
+                {selectedState.code}
+              </span>
+              <span className="font-bold text-slate-800 max-w-[90px] sm:max-w-[120px] truncate">{selectedState.name}</span>
+              <span className="text-[10px] text-emerald-700 font-medium hidden md:inline shrink-0">
+                ({selectedState.languageLabel})
+              </span>
+              <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
+            </button>
+
+            {isStateDropdownOpen && (
+              <div
+                className="absolute right-0 mt-2 w-72 max-h-80 overflow-y-auto bg-white rounded-2xl shadow-xl border border-slate-200 py-1.5 z-50 animate-in fade-in zoom-in-95 custom-scrollbar"
+                onClick={() => setIsStateDropdownOpen(false)}
+              >
+                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100 flex items-center justify-between">
+                  <span>State & Mapped Language</span>
+                </div>
+                {INDIAN_STATES.map((st) => {
+                  const isSelected = selectedState.code === st.code;
+                  return (
+                    <button
+                      key={st.code}
+                      type="button"
+                      onClick={() => setSelectedState(st.code)}
+                      className={`w-full text-left px-3 py-2 text-xs flex items-center justify-between hover:bg-emerald-50 transition-colors cursor-pointer ${
+                        isSelected ? 'bg-emerald-50/80 text-emerald-800 font-bold' : 'text-slate-700'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[9px] font-mono px-1 py-0.2 rounded bg-slate-100 text-slate-600 font-bold">{st.code}</span>
+                          <span className="font-semibold text-slate-800">{st.name} ({st.nativeName})</span>
+                        </div>
+                        <span className="text-[10px] text-emerald-600 font-medium block ml-6">
+                          Language: {st.languageLabel}
+                        </span>
+                      </div>
+                      {isSelected && <Check className="w-4 h-4 text-emerald-600 shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* AUTHENTICATED USER IDENTITY & LOCKED ROLE BADGE */}
           <div className="relative">
             <button
-              id="role-switcher-btn"
+              id="user-profile-menu-btn"
               onClick={() => {
                 setIsRoleDropdownOpen(!isRoleDropdownOpen);
-                setIsLangDropdownOpen(false);
+                setIsStateDropdownOpen(false);
               }}
-              className="flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-800 transition-all shadow-2xs"
-              title={t('switchRole')}
+              className={`flex items-center gap-2 px-2.5 sm:px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all shadow-2xs ${
+                currentRole === 'CITIZEN'
+                  ? 'bg-emerald-50/80 border-emerald-200 hover:bg-emerald-100/70 text-emerald-900'
+                  : currentRole === 'OFFICER'
+                  ? 'bg-amber-50/80 border-amber-200 hover:bg-amber-100/70 text-amber-900'
+                  : 'bg-indigo-50/80 border-indigo-200 hover:bg-indigo-100/70 text-indigo-900'
+              }`}
+              title="View Authenticated Identity & Account"
             >
               <span
-                className={`w-2 h-2 rounded-full ${
+                className={`w-2 h-2 rounded-full shrink-0 ${
                   currentRole === 'CITIZEN'
-                    ? 'bg-emerald-500'
+                    ? 'bg-emerald-500 ring-2 ring-emerald-300 animate-pulse'
                     : currentRole === 'OFFICER'
-                    ? 'bg-amber-500'
-                    : 'bg-blue-600'
+                    ? 'bg-amber-500 ring-2 ring-amber-300'
+                    : 'bg-indigo-600 ring-2 ring-indigo-300'
                 }`}
               />
-              <span className="font-bold text-slate-800 hidden sm:inline">
-                {currentRole === 'CITIZEN' ? t('roleCitizen').split('/')[0].trim() : currentRole === 'OFFICER' ? t('roleOfficer').split('(')[0].trim() : t('roleAuthority').split('/')[0].trim()}
+              <span className="font-bold hidden sm:inline truncate max-w-[140px]">
+                {currentRole === 'CITIZEN'
+                  ? '👤 ' + (userProfile?.fullName || 'Citizen')
+                  : currentRole === 'OFFICER'
+                  ? '🛡️ ' + (userProfile?.fullName || 'VAO Officer')
+                  : '🏛️ ' + (userProfile?.fullName || 'Registrar')}
               </span>
-              <ChevronDown className="w-3 h-3 text-slate-400" />
+              <span className="text-[10px] px-1.5 py-0.5 rounded-md font-bold uppercase tracking-wider bg-white/80 border border-slate-200/60 shadow-2xs">
+                {currentRole === 'CITIZEN' ? 'Citizen' : currentRole === 'OFFICER' ? 'VAO' : 'Registrar'}
+              </span>
+              <ChevronDown className="w-3 h-3 opacity-60 shrink-0" />
             </button>
 
             {isRoleDropdownOpen && (
               <div
-                className="absolute right-0 mt-2 w-72 sm:w-80 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 animate-in fade-in zoom-in-95"
+                className="absolute right-0 mt-2 w-72 sm:w-80 bg-white rounded-2xl shadow-xl border border-slate-200 py-2.5 z-50 animate-in fade-in zoom-in-95"
                 onClick={() => setIsRoleDropdownOpen(false)}
               >
-                <div className="px-4 py-2 border-b border-slate-100 flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    {t('switchRole')}
-                  </span>
-                  <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded-md">
-                    RBAC
-                  </span>
-                </div>
-                {roleOptions.map((opt) => {
-                  const isActive = currentRole === opt.role;
-                  return (
-                    <button
-                      key={opt.role}
-                      onClick={() => {
-                        setRole(opt.role);
-                        setIsRoleDropdownOpen(false);
-                      }}
-                      className={`w-full text-left px-4 py-2.5 flex items-start gap-3 hover:bg-slate-50 transition-colors ${
-                        isActive ? 'bg-emerald-50/60 font-medium' : ''
+                {/* Account Details Header */}
+                <div className="px-4 py-2 border-b border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Authenticated Profile
+                    </span>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        currentRole === 'CITIZEN'
+                          ? 'bg-emerald-100 text-emerald-800'
+                          : currentRole === 'OFFICER'
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-indigo-100 text-indigo-800'
                       }`}
                     >
-                      <span className="text-xl shrink-0 mt-0.5">{opt.icon}</span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between">
-                          <span className={`text-xs font-bold ${isActive ? 'text-emerald-700' : 'text-slate-800'}`}>
-                            {opt.title}
-                          </span>
-                          {isActive && (
-                            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-700 font-bold">
-                              ✓
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                          {opt.subtitle}
-                        </p>
-                      </div>
-                    </button>
-                  );
-                })}
-                <div className="border-t border-slate-100 mt-1 pt-1">
+                      {currentRole}
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-bold text-slate-900 mt-1">
+                    {userProfile?.fullName || currentProfile.name}
+                  </h4>
+                  <p className="text-xs text-slate-500 font-mono truncate">
+                    {userProfile?.email || 'citizen@nilathozhan.tn.gov.in'}
+                  </p>
+                  <p className="text-[11px] text-slate-600 mt-0.5">
+                    {userProfile?.designation || currentProfile.roleTitle} • {userProfile?.location || currentProfile.location}
+                  </p>
+                </div>
+
+                {/* Role Lock Security Explanation */}
+                <div className="mx-3 my-2.5 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-600 flex items-start gap-2 text-xs">
+                  <span className="text-sm shrink-0">🔒</span>
+                  <div className="space-y-0.5">
+                    <p className="font-bold text-slate-800 text-[11px]">
+                      Role Locked (பாதுகாக்கப்பட்ட அமர்வு)
+                    </p>
+                    <p className="text-[10px] text-slate-500 leading-relaxed">
+                      Role switching is locked to prevent unauthorized tampering. To use another role, sign out and authenticate with verified department credentials.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="px-2 pt-1 border-t border-slate-100 flex flex-col gap-1">
+                  <button
+                    onClick={() => {
+                      setIsRoleDropdownOpen(false);
+                      lockWorkstation();
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-lg flex items-center justify-between text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Lock className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Lock Workstation (திரைப் பூட்டு)</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400">PIN Protect</span>
+                  </button>
+
                   <button
                     onClick={() => {
                       setIsRoleDropdownOpen(false);
                       signOut();
                     }}
-                    className="w-full text-left px-4 py-2 flex items-center gap-2.5 text-xs text-rose-600 hover:bg-rose-50 transition-colors font-medium cursor-pointer"
+                    className="w-full text-left px-3 py-2 rounded-lg flex items-center justify-between text-xs font-semibold text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"
                   >
-                    <LogOut className="w-3.5 h-3.5" />
-                    <span>Sign Out / வெளியேறு</span>
+                    <div className="flex items-center gap-2">
+                      <LogOut className="w-3.5 h-3.5" />
+                      <span>Sign Out / வெளியேறு</span>
+                    </div>
+                    <span className="text-[10px] text-slate-400">Exit Session</span>
                   </button>
                 </div>
               </div>
@@ -296,7 +418,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
             id="header-notifications-btn"
             onClick={() => setIsNotifOpen(true)}
             className="relative p-2 text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-            title={t('notifications')}
+            title={t('notifications' as any, 'Notifications')}
           >
             <Bell className="w-4 h-4" />
             {unreadNotificationCount > 0 && (

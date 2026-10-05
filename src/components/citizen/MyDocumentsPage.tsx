@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import { StatusBadge } from '../common/StatusBadge';
-import { Search, Filter, FileUp, Map, ArrowRight, FileText, CheckCircle2 } from 'lucide-react';
+import { Search, Filter, FileUp, Map, ArrowRight, FileText, CheckCircle2, Trash2 } from 'lucide-react';
+import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
+import { LandDocument } from '../../types';
 
 export const MyDocumentsPage: React.FC = () => {
   const { documents, navigateTo, selectDocument, selectParcel, statusFilter, setStatusFilter, t } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedVillage, setSelectedVillage] = useState('ALL');
+  const [docToDelete, setDocToDelete] = useState<LandDocument | null>(null);
 
   // Distinct villages
   const villages = Array.from(new Set(documents.map((d) => d.village)));
@@ -243,11 +246,30 @@ export const MyDocumentsPage: React.FC = () => {
                   <Map className="w-3.5 h-3.5" />
                   <span>{t('navGisMap')}</span>
                 </button>
+
+                <button
+                  id={`btn-delete-doc-${doc.id}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDocToDelete(doc);
+                  }}
+                  title="Delete Land Record"
+                  className="p-2 rounded-xl border border-rose-200 bg-rose-50/70 hover:bg-rose-100 text-rose-700 hover:text-rose-800 transition-colors cursor-pointer shrink-0"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      {/* Delete Record Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={docToDelete !== null}
+        onClose={() => setDocToDelete(null)}
+        document={docToDelete}
+      />
     </div>
   );
 };

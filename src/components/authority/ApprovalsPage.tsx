@@ -16,13 +16,16 @@ import {
   Key,
   X,
   FileCheck2,
+  Trash2,
 } from 'lucide-react';
 import { LandDocument } from '../../types';
+import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 
 export const ApprovalsPage: React.FC = () => {
   const { documents, navigateTo, selectDocument, batchSubmitDigitalSignatures, currentProfile, t } = useApp();
   const [filterType, setFilterType] = useState<'ALL' | 'READY' | 'RESOLVED_CONFLICT' | 'APPROVED'>('READY');
   const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
+  const [docToDelete, setDocToDelete] = useState<LandDocument | null>(null);
   const [isBatchModalOpen, setIsBatchModalOpen] = useState<boolean>(false);
   const [batchSignerName, setBatchSignerName] = useState<string>(currentProfile.name);
   const [batchDesignation, setBatchDesignation] = useState<string>('Sub-Registrar & Revenue Divisional Officer');
@@ -256,20 +259,33 @@ export const ApprovalsPage: React.FC = () => {
                           <span className="text-emerald-700 font-medium">Clear for final sign-off</span>
                         )}
                         <span className="text-[11px] text-slate-400 block mt-0.5">
-                          By {doc.verificationOfficer || 'Assigned Officer'}
+                          By {doc.assignedOfficer || (doc as any).verificationOfficer || 'Assigned Officer'}
                         </span>
                       </td>
                       <td className="px-6 py-4">
                         <StatusBadge status={doc.status} size="sm" />
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <button
-                          id={`btn-exec-review-${doc.id}`}
-                          onClick={() => handleReviewClick(doc)}
-                          className="text-blue-600 hover:text-blue-800 hover:underline font-semibold text-xs transition-colors"
-                        >
-                          {t('viewDeedDossier')}
-                        </button>
+                        <div className="flex items-center justify-end gap-3">
+                          <button
+                            id={`btn-exec-review-${doc.id}`}
+                            onClick={() => handleReviewClick(doc)}
+                            className="text-blue-600 hover:text-blue-800 hover:underline font-semibold text-xs transition-colors cursor-pointer"
+                          >
+                            {t('viewDeedDossier')}
+                          </button>
+                          <button
+                            id={`btn-delete-authority-${doc.id}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDocToDelete(doc);
+                            }}
+                            className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                            title="Delete / Discard Land Record"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -356,6 +372,13 @@ export const ApprovalsPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Record Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={docToDelete !== null}
+        onClose={() => setDocToDelete(null)}
+        document={docToDelete}
+      />
     </div>
   );
 };

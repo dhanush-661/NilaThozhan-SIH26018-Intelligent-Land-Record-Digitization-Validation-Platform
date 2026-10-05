@@ -3,6 +3,7 @@ import { useApp } from '../../context/AppContext';
 import { DocumentPreview } from '../common/DocumentPreview';
 import { StatusBadge } from '../common/StatusBadge';
 import { generatePattaPDF } from '../../services/pdfService';
+import { TwoFactorAuthModal } from '../common/TwoFactorAuthModal';
 import {
   ShieldCheck,
   CheckCircle2,
@@ -18,7 +19,9 @@ import {
   History,
   Check,
   RotateCcw,
+  Trash2,
 } from 'lucide-react';
+import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 
 export const FinalApprovalPage: React.FC = () => {
   const {
@@ -30,6 +33,7 @@ export const FinalApprovalPage: React.FC = () => {
     submitOfficerDecision,
     navigateTo,
     downloadFile,
+    userProfile,
   } = useApp();
 
   const currentDoc =
@@ -42,6 +46,8 @@ export const FinalApprovalPage: React.FC = () => {
   const [securityPin, setSecurityPin] = useState('8492');
   const [isSigningLoading, setIsSigningLoading] = useState(false);
   const [clarificationNotes, setClarificationNotes] = useState('');
+  const [is2FaOpen, setIs2FaOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   const handleDownloadCertificate = async () => {
     await generatePattaPDF(currentDoc);
@@ -102,11 +108,11 @@ export const FinalApprovalPage: React.FC = () => {
           className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-slate-600 hover:text-slate-900"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Back to Approvals Queue</span>
+          <span>{t('backToApprovalsQueue')}</span>
         </button>
 
         <div className="flex items-center gap-3">
-          <span className="text-xs text-slate-500 font-medium hidden sm:inline">Evaluating Record:</span>
+          <span className="text-xs text-slate-500 font-medium hidden sm:inline">{t('evaluatingRecord')}</span>
           <select
             value={currentDoc.id}
             onChange={(e) => selectDocument(e.target.value)}
@@ -119,6 +125,15 @@ export const FinalApprovalPage: React.FC = () => {
             ))}
           </select>
           <StatusBadge status={currentDoc.status} size="md" />
+          <button
+            id="btn-delete-exec-doc"
+            onClick={() => setIsDeleteModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold transition-colors cursor-pointer"
+            title="Permanently delete this land record"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>{t('deleteLandRecord')}</span>
+          </button>
         </div>
       </div>
 
@@ -212,7 +227,7 @@ export const FinalApprovalPage: React.FC = () => {
                   "{currentDoc.officerNotes || 'All spatial attributes verified. Parcel boundaries match survey plan.'}"
                 </p>
                 <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
-                  <span>Officer: {currentDoc.verificationOfficer || 'Officer K. Sharma'}</span>
+                  <span>Officer: {currentDoc.assignedOfficer || (currentDoc as any).verificationOfficer || 'Officer K. Sharma'}</span>
                   <span>Confidence: <strong>{currentDoc.confidenceScore}%</strong></span>
                 </div>
               </div>
@@ -242,7 +257,7 @@ export const FinalApprovalPage: React.FC = () => {
                   <div key={event.id} className="flex items-start justify-between text-slate-600 bg-slate-50 p-2 rounded">
                     <div>
                       <span className="font-semibold text-slate-800">{event.action}</span>
-                      <span className="text-slate-400 ml-2 text-[11px]">by {event.userName}</span>
+                      <span className="text-slate-400 ml-2 text-[11px]">by {event.actorName || (event as any).userName}</span>
                     </div>
                     <span className="text-[10px] text-slate-400">{event.timestamp}</span>
                   </div>
@@ -429,16 +444,16 @@ export const FinalApprovalPage: React.FC = () => {
                     </button>
                     <button
                       id="btn-apply-signature-step2"
-                      onClick={handleApplySignature}
+                      onClick={() => setIs2FaOpen(true)}
                       disabled={isSigningLoading || !securityPin}
-                      className="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow-xs"
+                      className="px-6 py-2.5 bg-emerald-700 hover:bg-emerald-800 disabled:opacity-50 text-white rounded-lg text-xs font-bold flex items-center gap-2 shadow-xs cursor-pointer"
                     >
                       {isSigningLoading ? (
                         <span>Cryptographically Signing...</span>
                       ) : (
                         <>
                           <Award className="w-4 h-4" />
-                          <span>Apply Digital Signature</span>
+                          <span>Verify 2FA & Apply Digital Signature</span>
                         </>
                       )}
                     </button>
@@ -510,6 +525,23 @@ export const FinalApprovalPage: React.FC = () => {
           </div>
         </div>
       )}
+      {/* 2FA Challenge Modal for DSC Issuance */}
+      <TwoFactorAuthModal
+        isOpen={is2FaOpen}
+        onClose={() => setIs2FaOpen(false)}
+        onSuccess={handleApplySignature}
+        actionTitle={`DSC Executive Digital Signature for Patta #${currentDoc.surveyNumber}`}
+        officerName={userProfile?.fullName || 'Dr. V. Narayanan, IAS'}
+        phoneNumber={userProfile?.phone || (userProfile as any)?.phoneNumber || '+91 94440 98765'}
+      />
+
+      {/* Delete Record Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        document={currentDoc}
+        onSuccess={() => navigateTo('approvals')}
+      />
     </div>
   );
 };

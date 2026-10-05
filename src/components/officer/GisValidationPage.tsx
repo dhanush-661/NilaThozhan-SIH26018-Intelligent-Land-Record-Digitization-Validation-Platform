@@ -181,10 +181,10 @@ export const GisValidationPage: React.FC = () => {
                   'The survey number in the deed does not match the mapped polygon coordinates, or the deed extent deviates significantly from the surveyed GIS polygon.'}
               </p>
 
-              {currentDoc.validationReport.systemRecommendation && (
+              {(currentDoc.validationReport.recommendedAction || (currentDoc.validationReport as any).systemRecommendation) && (
                 <div className="mt-2 text-xs font-semibold text-rose-900 bg-white/80 p-2.5 rounded-lg border border-rose-200">
                   💡 <strong>System Recommendation:</strong>{' '}
-                  {currentDoc.validationReport.systemRecommendation}
+                  {currentDoc.validationReport.recommendedAction || (currentDoc.validationReport as any).systemRecommendation}
                 </div>
               )}
             </div>

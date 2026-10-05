@@ -244,7 +244,21 @@ const DocPreviewPanel: React.FC<DocPreviewPanelProps> = ({ file, fileObjectUrl, 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export const OfficerUploadPage: React.FC = () => {
-  const { uploadNewDocument, navigateTo, selectDocument, saveManualVerification, submitOfficerDecision } = useApp();
+  const { uploadNewDocument, navigateTo, selectDocument, saveManualVerification, submitOfficerDecision, t } = useApp();
+
+  const getFieldLabel = (key: string, defaultLabel: string): string => {
+    switch (key) {
+      case 'documentType': return t('fieldDocType', defaultLabel);
+      case 'ownerName': return t('fieldOwnerName', defaultLabel);
+      case 'surveyNumber': return t('fieldSurveyNumber', defaultLabel);
+      case 'village': return t('fieldVillage', defaultLabel);
+      case 'taluk': return t('fieldTaluk', defaultLabel);
+      case 'district': return t('fieldDistrict', defaultLabel);
+      case 'landArea': return t('fieldLandArea', defaultLabel);
+      case 'executionDate': return t('fieldExecutionDate', defaultLabel);
+      default: return defaultLabel;
+    }
+  };
 
   // ── File ──
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -323,8 +337,8 @@ export const OfficerUploadPage: React.FC = () => {
   const handleDrop = useCallback((e:React.DragEvent)=>{ e.preventDefault(); setIsDragging(false); const f=e.dataTransfer.files?.[0]; if(f) handleFileSelect(f); },[]);
 
   // ── Field editing (Stage 1) ──
-  const editField = (k:string)=>setFields(p=>({...p,[k]:{...(p as Record<string,OcrExtractedField>)[k],isEditing:true}}));
-  const saveField = (k:string,v:string)=>setFields(p=>({...p,[k]:{...(p as Record<string,OcrExtractedField>)[k],value:v,isEditing:false}}));
+  const editField = (k:string)=>setFields(p=>({...p,[k]:{...(p as unknown as Record<string,OcrExtractedField>)[k],isEditing:true}}));
+  const saveField = (k:string,v:string)=>setFields(p=>({...p,[k]:{...(p as unknown as Record<string,OcrExtractedField>)[k],value:v,isEditing:false}}));
   const fv = (k:string)=>((fields as unknown as Record<string,OcrExtractedField>)[k]?.value??'');
 
   // ── Start OCR ──
@@ -349,7 +363,7 @@ export const OfficerUploadPage: React.FC = () => {
     const safeDocType = VALID_DOC_TYPES.includes(result.documentType.value as LandDocument['documentType'])
       ? result.documentType.value as LandDocument['documentType'] : result.documentType.value as LandDocument['documentType'];
 
-    const docId = uploadNewDocument({
+    const docId = await uploadNewDocument({
       title:         `${result.documentType.value||'Land Deed'} — Survey ${result.surveyNumber.value||'N/A'}`,
       documentType:  safeDocType,
       ownerName:     result.ownerName.value,
@@ -365,8 +379,8 @@ export const OfficerUploadPage: React.FC = () => {
       fileSize:      formatBytes(selectedFile.size),
       fileType:      selectedFile.type,
     });
-    setCreatedDocId(docId);
-    selectDocument(docId);
+    setCreatedDocId(String(docId));
+    selectDocument(String(docId));
 
     const init: Record<string,boolean> = {};
     FIELD_CONFIG.forEach(([,k])=>{ init[k as string]=false; });
@@ -394,10 +408,10 @@ export const OfficerUploadPage: React.FC = () => {
   const isPipelinePhase = ['digitization','manual-verification','gis-validation','review-decision'].includes(pagePhase);
 
   const gisChecks = gisMock ? [
-    { label:'Area Match (Deed vs GIS)',      ok:gisMock.areaMatch,                   detail: gisMock.areaMatch ? `Doc ${gisMock.docArea} ac matches GIS ${gisMock.gisArea} ac` : `Discrepancy: doc ${gisMock.docArea} ac vs GIS ${gisMock.gisArea} ac` },
-    { label:'Boundary Conflict Check',       ok:gisMock.boundaryStatus==='VERIFIED',  detail: gisMock.boundaryStatus==='VERIFIED' ? 'No encroachment on adjacent parcels' : 'Boundary overlap detected — field inspection required' },
-    { label:'Encroachment Risk',             ok:['LOW','NONE'].includes(gisMock.encroachmentRisk), detail:`Risk level: ${gisMock.encroachmentRisk}` },
-    { label:'Survey Number Registry Match',  ok:true,                                detail:`Survey ${fv('surveyNumber')||'N/A'} found in village cadastral register` },
+    { label: t('areaMatchDeedVsGis'), ok:gisMock.areaMatch, detail: gisMock.areaMatch ? `Doc ${gisMock.docArea} ac matches GIS ${gisMock.gisArea} ac` : `Discrepancy: doc ${gisMock.docArea} ac vs GIS ${gisMock.gisArea} ac` },
+    { label: t('boundaryConflictCheck'), ok:gisMock.boundaryStatus==='VERIFIED', detail: gisMock.boundaryStatus==='VERIFIED' ? 'No encroachment on adjacent parcels' : 'Boundary overlap detected — field inspection required' },
+    { label: t('encroachmentRisk'), ok:['LOW','NONE'].includes(gisMock.encroachmentRisk), detail:`Risk level: ${gisMock.encroachmentRisk}` },
+    { label: t('surveyMatchInRegistry'), ok:true, detail:`Survey ${fv('surveyNumber')||'N/A'} found in village cadastral register` },
   ] : [];
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -408,14 +422,14 @@ export const OfficerUploadPage: React.FC = () => {
       <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
         <div className="flex items-center gap-2 text-xs font-bold text-blue-700 uppercase tracking-wide">
           <FileUp className="w-4 h-4" />
-          <span>{isPipelinePhase ? 'Processing & Validation Pipeline' : 'Automated Ingestion Pipeline'}</span>
+          <span>{isPipelinePhase ? t('processingAndValidationPipeline') : t('automatedPipeline')}</span>
         </div>
         <h1 className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">
-          {isPipelinePhase ? 'Land Document Processing Workstation' : 'Land Document Upload & OCR Extraction'}
+          {isPipelinePhase ? t('processingWorkstation') : t('landDocUploadOcr')}
         </h1>
         {!isPipelinePhase && (
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Upload official revenue deeds (PDF, JPG, PNG, TIFF up to 25 MB). AI Vision OCR extracts structured attributes, then the 4-stage processing pipeline launches automatically.
+            {t('uploadSubtitle')}
           </p>
         )}
       </div>
@@ -440,22 +454,22 @@ export const OfficerUploadPage: React.FC = () => {
             </div>
             {selectedFile ? (
               <>
-                <h3 className="text-base font-bold text-emerald-800">File selected — ready to process</h3>
+                <h3 className="text-base font-bold text-emerald-800">{t('fileSelectedReady')}</h3>
                 <div className="flex items-center gap-2 px-4 py-2 bg-white border border-emerald-200 rounded-lg shadow-xs text-sm">
                   <FileText className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span className="font-semibold text-slate-800 truncate max-w-xs">{selectedFile.name}</span>
                   <span className="text-slate-400 text-xs shrink-0">{formatBytes(selectedFile.size)}</span>
                   <button onClick={e=>{e.stopPropagation();setSelectedFile(null);setFileError(null);}} className="ml-1 p-0.5 rounded-full text-slate-400 hover:text-red-500 transition-colors"><X className="w-4 h-4"/></button>
                 </div>
-                <p className="text-xs text-slate-500">Click to replace</p>
+                <p className="text-xs text-slate-500">{t('clickToReplace')}</p>
               </>
             ) : (
               <>
-                <h3 className="text-base font-bold text-slate-800">{isDragging ? 'Drop your deed file here' : 'Drag & drop a land deed, or click to browse'}</h3>
-                <p className="text-xs text-slate-500">PDF, TIFF, JPG, PNG — up to 25 MB</p>
+                <h3 className="text-base font-bold text-slate-800">{isDragging ? t('dropYourDeedHere') : t('dragDropDeed')}</h3>
+                <p className="text-xs text-slate-500">{t('fileFormatsDesc')}</p>
                 <div className="flex flex-wrap gap-2 justify-center mt-1">
-                  {['PDF Deeds','TIFF Scans','PNG / JPG Sketches'].map(t=>(
-                    <span key={t} className="text-[11px] bg-white px-2.5 py-1 rounded border border-slate-200 text-slate-500 font-mono">{t}</span>
+                  {[t('pdfDeeds'), t('tiffScans'), t('pngJpgSketches')].map(tag=>(
+                    <span key={tag} className="text-[11px] bg-white px-2.5 py-1 rounded border border-slate-200 text-slate-500 font-mono">{tag}</span>
                   ))}
                 </div>
               </>
@@ -467,12 +481,12 @@ export const OfficerUploadPage: React.FC = () => {
               <AlertTriangle className="w-4 h-4 shrink-0"/>{fileError}
             </div>
           )}
-          {!selectedFile && <p className="text-xs text-slate-400 text-center">Please select a land document file to begin OCR processing.</p>}
+          {!selectedFile && <p className="text-xs text-slate-400 text-center">{t('pleaseSelectFile')}</p>}
           <div className="flex justify-center">
             <button id="btn-start-ocr" onClick={handleStartOcr} disabled={!selectedFile || !!fileError}
               className="px-8 py-3 rounded-xl bg-blue-700 hover:bg-blue-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm shadow-xs transition-colors flex items-center gap-2">
               <Sparkles className="w-4 h-4"/>
-              Request for Digitalization
+              {t('requestForDigitalization')}
             </button>
           </div>
         </div>
@@ -487,7 +501,7 @@ export const OfficerUploadPage: React.FC = () => {
             <div className="w-12 h-12 rounded-full bg-blue-50 text-blue-700 flex items-center justify-center mx-auto mb-3">
               <Clock className="w-6 h-6 animate-spin"/>
             </div>
-            <h2 className="text-lg font-bold text-slate-900">Processing Land Document</h2>
+            <h2 className="text-lg font-bold text-slate-900">{t('processingLandDocument')}</h2>
             <p className="text-xs text-slate-500 mt-1 min-h-[1.5rem]">{pipelineState.message}</p>
           </div>
           <div className="space-y-2 max-w-lg mx-auto">
@@ -514,9 +528,9 @@ export const OfficerUploadPage: React.FC = () => {
         <div className="bg-white rounded-xl border border-emerald-200 p-8 shadow-xs text-center space-y-4">
           <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto"><CheckCircle2 className="w-9 h-9"/></div>
           <div>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 uppercase tracking-wide mb-2">OCR Extraction Complete</span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 uppercase tracking-wide mb-2">{t('ocrCompleteTitle')}</span>
             <h2 className="text-xl font-bold text-slate-900 mt-1">{ocrResult.documentType.value||'Land Deed'} — {ocrResult.overallConfidence}% Confidence</h2>
-            <p className="text-sm text-slate-500 mt-1">AI Vision OCR extracted all 8 fields. Launching processing pipeline in <strong className="text-blue-700 text-base">{countdown}s</strong>…</p>
+            <p className="text-sm text-slate-500 mt-1">{t('ocrLaunchingPipeline')} <strong className="text-blue-700 text-base">{countdown}s</strong>…</p>
           </div>
           <div className="flex justify-center">
             <div className="w-48 h-1.5 bg-slate-200 rounded-full overflow-hidden">
@@ -592,7 +606,7 @@ export const OfficerUploadPage: React.FC = () => {
                   {/* Field rows */}
                   <div className="divide-y divide-slate-100 flex-1">
                     {FIELD_CONFIG.map(([label,key,mono])=>(
-                      <FieldRow key={key as string} label={label} fieldKey={key as string}
+                      <FieldRow key={key as string} label={getFieldLabel(key as string, label)} fieldKey={key as string}
                         field={(fields as unknown as Record<string,OcrExtractedField>)[key as string]}
                         mono={mono} onEdit={editField} onSave={saveField} />
                     ))}
@@ -613,7 +627,7 @@ export const OfficerUploadPage: React.FC = () => {
                   <div className="px-5 py-4 border-t border-slate-100 flex justify-end">
                     <button onClick={()=>setPagePhase('manual-verification')}
                       className="px-5 py-2.5 rounded-lg bg-blue-700 hover:bg-blue-800 text-white text-sm font-semibold flex items-center gap-2 shadow-xs transition-colors">
-                      Confirm Digitization<ArrowRight className="w-4 h-4"/>
+                      {t('confirmDigitization')}<ArrowRight className="w-4 h-4"/>
                     </button>
                   </div>
                 </div>

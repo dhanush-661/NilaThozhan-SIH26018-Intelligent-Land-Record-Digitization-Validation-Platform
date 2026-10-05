@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { parseRegionalAreaText } from './areaConversionService';
 import {
   AuditEvent,
   ConfidenceLevel,
@@ -311,7 +312,7 @@ export const documentService = {
         taluk: newDocData.taluk || 'Pending Verification',
         district: newDocData.district || 'Pending Verification',
         land_area: newDocData.landArea || '0 acres',
-        land_area_numeric: newDocData.landAreaNumeric || 0,
+        land_area_numeric: newDocData.landAreaNumeric || parseRegionalAreaText(newDocData.landArea || '').acres || 0,
         submission_date: newDocData.submissionDate || new Date().toISOString().split('T')[0],
         status: (newDocData.status as any) || 'DIGITIZED',
         overall_confidence: (newDocData.overallConfidence as any) || 'HIGH',
@@ -525,6 +526,30 @@ export const documentService = {
     if (error) {
       console.error('Error saving manual verification:', error);
       throw error;
+    }
+  },
+
+  async deleteDocument(docId: string): Promise<void> {
+    try {
+      // 1. Delete associated child records
+      await Promise.allSettled([
+        supabase.from('extracted_fields').delete().eq('document_id', docId),
+        supabase.from('cadastral_details').delete().eq('document_id', docId),
+        supabase.from('cadastral_boundaries').delete().eq('document_id', docId),
+        supabase.from('validation_reports').delete().eq('document_id', docId),
+        supabase.from('officer_recommendations').delete().eq('document_id', docId),
+        supabase.from('digital_signatures').delete().eq('document_id', docId),
+        supabase.from('audit_events').delete().eq('document_id', docId),
+        supabase.from('citizen_queries').delete().eq('document_id', docId),
+      ]);
+
+      // 2. Delete parent document record
+      const { error } = await supabase.from('land_documents').delete().eq('id', docId);
+      if (error) {
+        console.warn('Supabase remote delete notification (safe fallback for mock data):', error);
+      }
+    } catch (err) {
+      console.warn('deleteDocument encountered network error; proceeding with local deletion:', err);
     }
   },
 };

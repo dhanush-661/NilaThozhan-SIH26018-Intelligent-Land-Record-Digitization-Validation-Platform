@@ -100,7 +100,7 @@ published to the citizen digital vault under IT Act Section 6A guidelines.
         <div className="p-5 bg-white rounded-xl border border-slate-200 shadow-xs">
           <span className="text-xs font-medium text-slate-500 block">{t('avgReviewTime')}</span>
           <span className="text-3xl font-bold text-slate-900 mt-1 block">8.5 min</span>
-          <span className="text-xs text-slate-500 mt-2 block font-medium">Reduced by 76% via automated OCR</span>
+          <span className="text-xs text-slate-500 mt-2 block font-medium">{t('reducedByOcr')}</span>
         </div>
       </div>
 
@@ -111,7 +111,7 @@ published to the citizen digital vault under IT Act Section 6A guidelines.
             <h3 className="font-bold text-slate-900 text-sm sm:text-base">
               {t('villageBreakdown')}
             </h3>
-            <span className="text-xs text-slate-500">Tamil Nadu Revenue Division</span>
+            <span className="text-xs text-slate-500">{t('tnRevenueDivision')}</span>
           </div>
           <button
             onClick={handleExportVillageCSV}
@@ -128,7 +128,7 @@ published to the citizen digital vault under IT Act Section 6A guidelines.
               <th className="py-3 px-4">{t('village')}</th>
               <th className="py-3 px-3">{t('totalDocuments')}</th>
               <th className="py-3 px-3">{t('statusApproved')}</th>
-              <th className="py-3 px-4 text-right">Completion Rate</th>
+              <th className="py-3 px-4 text-right">{t('completionRate')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 text-slate-700">

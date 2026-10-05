@@ -17,8 +17,12 @@ import {
   Layers,
   Sparkles,
   Hash,
+  GitFork,
+  Download,
 } from 'lucide-react';
 import type { CadastralBoundaries } from '../../types';
+import { MutationLineageModal } from '../common/MutationLineageModal';
+import { downloadDilrmpXml } from '../../services/dilrmpService';
 
 export const ManualVerificationPage: React.FC = () => {
   const {
@@ -45,6 +49,7 @@ export const ManualVerificationPage: React.FC = () => {
   const [editingValue, setEditingValue] = useState<string>('');
   const [editingBoundaryKey, setEditingBoundaryKey] = useState<keyof CadastralBoundaries | null>(null);
   const [editingBoundaryValue, setEditingBoundaryValue] = useState<string>('');
+  const [isLineageModalOpen, setIsLineageModalOpen] = useState(false);
 
   const [officerNotes, setOfficerNotes] = useState<string>(
     currentDoc?.officerNotes || 'Survey number and Tamil cadastral boundaries verified against Sub-Registrar volume 412, page 88.'
@@ -125,7 +130,7 @@ export const ManualVerificationPage: React.FC = () => {
         </div>
 
         {/* Quick Document Picker */}
-        <div className="flex items-center gap-2 text-xs">
+        <div className="flex items-center gap-2 text-xs flex-wrap">
           <span className="text-slate-500 font-medium hidden sm:inline">{t('selectRecordPrompt', 'Select Record:')}</span>
           <select
             value={currentDoc.id}
@@ -138,6 +143,22 @@ export const ManualVerificationPage: React.FC = () => {
               </option>
             ))}
           </select>
+          <button
+            onClick={() => setIsLineageModalOpen(true)}
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-800 text-xs font-semibold border border-indigo-200 transition-colors"
+            title="Inspect historical deed lineage graph and mutation audit"
+          >
+            <GitFork className="w-3.5 h-3.5" />
+            <span>Title Lineage (DAG)</span>
+          </button>
+          <button
+            onClick={() => downloadDilrmpXml(currentDoc)}
+            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-800 text-xs font-semibold border border-purple-200 transition-colors"
+            title="Download official DILRMP XML schema"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>DILRMP XML</span>
+          </button>
         </div>
       </div>
 
@@ -605,6 +626,13 @@ export const ManualVerificationPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Title Lineage & Mutation DAG Modal */}
+      <MutationLineageModal
+        isOpen={isLineageModalOpen}
+        onClose={() => setIsLineageModalOpen(false)}
+        document={currentDoc}
+      />
     </div>
   );
 };

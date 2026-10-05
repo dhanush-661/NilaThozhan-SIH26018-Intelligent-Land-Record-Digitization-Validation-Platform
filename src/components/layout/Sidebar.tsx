@@ -13,6 +13,7 @@ import {
   HelpCircle,
   X,
   FileCheck,
+  LogOut,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -28,7 +29,7 @@ interface NavItemConfig {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
-  const { currentRole, activeTab, navigateTo, documents, t } = useApp();
+  const { currentRole, activeTab, navigateTo, documents, signOut, userProfile, currentProfile, t } = useApp();
 
   // Compute live badges
   const pendingOfficerVerificationCount = documents.filter(
@@ -306,16 +307,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
         <div className="p-3 sm:p-4 border-t border-slate-800 bg-slate-950/40 shrink-0">
           <div className="flex items-center gap-2.5 px-1 py-1">
             <div className="w-8 h-8 rounded-xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center text-xs font-bold text-emerald-400 shrink-0">
-              {currentRole === 'CITIZEN' ? 'RP' : currentRole === 'OFFICER' ? 'KS' : 'VN'}
+              {userProfile?.fullName ? userProfile.fullName.slice(0, 2).toUpperCase() : currentRole === 'CITIZEN' ? 'RP' : currentRole === 'OFFICER' ? 'KS' : 'VN'}
             </div>
-            <div className="text-xs min-w-0">
+            <div className="text-xs min-w-0 flex-1">
               <p className="font-semibold text-white truncate">
-                {currentRole === 'CITIZEN' ? 'Ramesh Patel' : currentRole === 'OFFICER' ? 'Officer K. Sharma' : 'Dr. V. Narayanan'}
+                {userProfile?.fullName || (currentRole === 'CITIZEN' ? 'Ramesh Patel' : currentRole === 'OFFICER' ? 'Officer K. Sharma' : 'Dr. V. Narayanan')}
               </p>
               <p className="text-slate-400 text-[11px] truncate">
-                {currentRole === 'CITIZEN' ? 'Landowner' : currentRole === 'OFFICER' ? 'Village Officer' : 'Sub-Registrar'}
+                {userProfile?.designation || (currentRole === 'CITIZEN' ? 'Landowner' : currentRole === 'OFFICER' ? 'Village Officer' : 'Sub-Registrar')}
               </p>
             </div>
+            <button
+              onClick={signOut}
+              title="Sign Out / வெளியேறு"
+              className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800/80 rounded-lg transition-colors cursor-pointer shrink-0"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </aside>

@@ -14,11 +14,14 @@ import {
   Layers,
   Filter,
   FileUp,
+  Trash2,
 } from 'lucide-react';
 import { LandDocument } from '../../types';
+import { DeleteConfirmationModal } from '../common/DeleteConfirmationModal';
 
 export const OfficerDashboard: React.FC = () => {
   const { documents, navigateTo, selectDocument, downloadFile, t } = useApp();
+  const [docToDelete, setDocToDelete] = useState<LandDocument | null>(null);
   const [activeQueueTab, setActiveQueueTab] = useState<
     'HIGH_PRIORITY' | 'MANUAL_VERIFICATION' | 'GIS_CONFLICTS' | 'READY_APPROVAL'
   >('HIGH_PRIORITY');
@@ -307,13 +310,26 @@ export const OfficerDashboard: React.FC = () => {
                     <StatusBadge status={doc.validationReport.status} size="sm" />
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button
-                      id={`btn-review-queue-${doc.id}`}
-                      onClick={() => handleOpenDocumentWorkflow(doc)}
-                      className="text-blue-600 hover:text-blue-800 hover:underline font-semibold text-xs transition-colors"
-                    >
-                      {doc.overallConfidence === 'LOW' ? t('verifyManual') : doc.validationReport.status === 'CONFLICT' ? t('openMap') : t('review')}
-                    </button>
+                    <div className="flex items-center justify-end gap-3">
+                      <button
+                        id={`btn-review-queue-${doc.id}`}
+                        onClick={() => handleOpenDocumentWorkflow(doc)}
+                        className="text-blue-600 hover:text-blue-800 hover:underline font-semibold text-xs transition-colors cursor-pointer"
+                      >
+                        {doc.overallConfidence === 'LOW' ? t('verifyManual') : doc.validationReport.status === 'CONFLICT' ? t('openMap') : t('review')}
+                      </button>
+                      <button
+                        id={`btn-delete-queue-${doc.id}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDocToDelete(doc);
+                        }}
+                        className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                        title="Delete / Discard Land Record"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -346,6 +362,13 @@ export const OfficerDashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Delete Record Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={docToDelete !== null}
+        onClose={() => setDocToDelete(null)}
+        document={docToDelete}
+      />
     </div>
   );
 };

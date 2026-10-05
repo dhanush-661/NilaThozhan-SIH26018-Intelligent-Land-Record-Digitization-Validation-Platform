@@ -160,10 +160,10 @@ export const HelpFaqPage: React.FC = () => {
           <MessageSquare className="w-5 h-5 text-blue-700" />
           <div>
             <h3 className="text-base font-bold text-slate-900">
-              Submit a Support & Query Ticket
+              {t('submitSupportTicket')}
             </h3>
             <p className="text-xs text-slate-500">
-              Need assistance with survey boundaries, document verification, or portal access? Send a query directly to the district support desk.
+              {t('submitTicketDesc')}
             </p>
           </div>
         </div>
@@ -173,15 +173,15 @@ export const HelpFaqPage: React.FC = () => {
             <div className="flex items-center gap-2.5">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
               <div>
-                <span className="font-bold block">Support Ticket Created Successfully!</span>
-                <span>Reference ID: <strong className="font-mono text-emerald-800">{ticketSubmittedId}</strong>. A response will be dispatched shortly.</span>
+                <span className="font-bold block">{t('ticketCreatedSuccess')}</span>
+                <span>{t('ticketRefNotice')} (<strong className="font-mono text-emerald-800">{ticketSubmittedId}</strong>)</span>
               </div>
             </div>
             <button
               onClick={() => setTicketSubmittedId(null)}
               className="text-xs text-emerald-700 underline font-semibold hover:text-emerald-900"
             >
-              Dismiss
+              {t('dismiss')}
             </button>
           </div>
         )}
@@ -189,50 +189,50 @@ export const HelpFaqPage: React.FC = () => {
         <form onSubmit={handleSubmitTicket} className="space-y-4 text-xs">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="font-bold text-slate-700 block mb-1">Inquiry Category</label>
+              <label className="font-bold text-slate-700 block mb-1">{t('inquiryCategory')}</label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 className="w-full p-2.5 rounded-lg border border-slate-300 bg-white font-medium outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="Cadastral Discrepancy">Cadastral Discrepancy / Survey Alignment</option>
-                <option value="Digital Certificate Verification">Digital Certificate Verification</option>
-                <option value="OCR Extraction Inquiry">OCR & Document Text Reading</option>
-                <option value="General Portal Support">General Portal Access Support</option>
+                <option value="Cadastral Discrepancy">{t('categoryCadastral')}</option>
+                <option value="Digital Certificate Verification">{t('categoryCertificate')}</option>
+                <option value="OCR Extraction Inquiry">{t('categoryOcr')}</option>
+                <option value="General Portal Support">{t('categoryPortal')}</option>
               </select>
             </div>
 
             <div>
-              <label className="font-bold text-slate-700 block mb-1">Contact Email / Phone</label>
+              <label className="font-bold text-slate-700 block mb-1">{t('contactEmailPhone')}</label>
               <input
                 type="text"
                 value={contactEmail}
                 onChange={(e) => setContactEmail(e.target.value)}
-                placeholder="e.g. citizen@karnataka.gov.in"
+                placeholder="e.g. citizen@tn.gov.in"
                 className="w-full p-2.5 rounded-lg border border-slate-300 font-sans outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
 
           <div>
-            <label className="font-bold text-slate-700 block mb-1">Ticket Subject</label>
+            <label className="font-bold text-slate-700 block mb-1">{t('ticketSubject')}</label>
             <input
               type="text"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder="Brief summary of your question or issue..."
+              placeholder={t('ticketSubjectPlaceholder')}
               className="w-full p-2.5 rounded-lg border border-slate-300 font-sans outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
           </div>
 
           <div>
-            <label className="font-bold text-slate-700 block mb-1">Detailed Description</label>
+            <label className="font-bold text-slate-700 block mb-1">{t('detailedDescription')}</label>
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows={3}
-              placeholder="Describe your survey number, deed details, or question..."
+              placeholder={t('detailedDescPlaceholder')}
               className="w-full p-2.5 rounded-lg border border-slate-300 font-sans outline-none focus:ring-2 focus:ring-blue-500"
               required
             />
@@ -244,7 +244,7 @@ export const HelpFaqPage: React.FC = () => {
               className="px-5 py-2.5 bg-blue-700 hover:bg-blue-800 text-white rounded-lg font-bold flex items-center gap-2 shadow-xs transition-colors"
             >
               <Send className="w-4 h-4" />
-              <span>Submit Support Ticket</span>
+              <span>{t('btnSubmitSupportTicket')}</span>
             </button>
           </div>
         </form>

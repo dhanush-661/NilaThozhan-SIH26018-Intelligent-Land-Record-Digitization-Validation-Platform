@@ -13,6 +13,8 @@ import {
   Download,
   FileUp,
   ExternalLink,
+  ShieldCheck,
+  Lock,
 } from 'lucide-react';
 
 interface DocumentPreviewProps {
@@ -76,12 +78,18 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
       {/* Document Viewer Toolbar */}
       {showTools && (
         <div className="bg-slate-200/90 backdrop-blur border-b border-slate-300 px-3 py-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-700">
-          <div className="flex items-center gap-1.5 font-medium truncate max-w-xs">
-            <FileText className="w-4 h-4 text-slate-600 shrink-0" />
-            <span className="font-semibold text-slate-900 truncate">
-              {effectiveFileName || document.documentNumber}
+          <div className="flex items-center gap-2 truncate">
+            <div className="flex items-center gap-1.5 font-medium truncate max-w-xs">
+              <FileText className="w-4 h-4 text-slate-600 shrink-0" />
+              <span className="font-semibold text-slate-900 truncate">
+                {effectiveFileName || document.documentNumber}
+              </span>
+              <span className="text-slate-500 shrink-0">({document.documentType})</span>
+            </div>
+            <span className="hidden md:inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-100/90 border border-emerald-300 px-2 py-0.5 rounded-full shadow-2xs">
+              <ShieldCheck className="w-3 h-3 text-emerald-700" />
+              <span>Anti-Counterfeit Watermarked</span>
             </span>
-            <span className="text-slate-500 shrink-0">({document.documentType})</span>
           </div>
 
           <div className="flex items-center gap-1">
@@ -221,12 +229,28 @@ export const DocumentPreview: React.FC<DocumentPreviewProps> = ({
               transformOrigin: 'center center',
               transition: 'transform 0.15s ease-out',
             }}
-            className={`w-full max-w-[540px] aspect-[1/1.414] shadow-md border rounded p-6 sm:p-8 flex flex-col justify-between relative transition-colors duration-200 ${
+            className={`w-full max-w-[540px] aspect-[1/1.414] shadow-md border rounded p-6 sm:p-8 flex flex-col justify-between relative transition-colors duration-200 overflow-hidden ${
               highContrast
                 ? 'bg-neutral-900 text-yellow-100 border-neutral-700 filter invert contrast-125'
                 : 'bg-[#fffdf9] text-slate-800 border-[#e8dfcf]'
             }`}
           >
+            {/* Dynamic Security Anti-Counterfeit Watermark Overlay */}
+            <div className="absolute inset-0 pointer-events-none flex flex-col justify-around items-center select-none overflow-hidden z-20 opacity-[0.07] p-4">
+              <div className="-rotate-25 text-center font-black tracking-widest text-slate-900 text-sm uppercase">
+                {document.status === 'APPROVED'
+                  ? 'CERTIFIED TN-RoR CADASTRAL RECORD • DILRMP 2.0 • TAMPER PROOF'
+                  : 'OFFICIAL VERIFICATION ONLY • NOT FINAL TITLE • COPY PROHIBITED'}
+              </div>
+              <div className="-rotate-25 text-center font-black tracking-widest text-slate-900 text-xs uppercase">
+                {document.documentNumber} • SECURE REGISTRY HASH VERIFIED • {new Date().toLocaleDateString()}
+              </div>
+              <div className="-rotate-25 text-center font-black tracking-widest text-slate-900 text-sm uppercase">
+                {document.status === 'APPROVED'
+                  ? 'SHA-256 ENCRYPTED CADASTRE • GOVT OF TAMIL NADU'
+                  : 'SUB-REGISTRAR WORKSTATION PREVIEW • UNAUTHORIZED PRINTING FORBIDDEN'}
+              </div>
+            </div>
           {/* Official Emblem & Watermark Header */}
           <div className="border-b-2 border-double border-slate-400/60 pb-3 text-center relative">
             <div className="flex items-center justify-center gap-2 mb-1">

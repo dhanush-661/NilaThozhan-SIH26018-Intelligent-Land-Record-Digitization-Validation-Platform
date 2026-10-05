@@ -14,6 +14,7 @@ import { Style, Stroke, Fill, Circle as CircleStyle } from 'ol/style';
 import { fromLonLat, toLonLat } from 'ol/proj';
 
 import { useApp } from '../../context/AppContext';
+import { generateUlpinFromCoordinates } from '../../services/ulpinService';
 import {
   Search,
   ZoomIn,
@@ -88,6 +89,7 @@ export const GisMapPage: React.FC<GisMapPageProps> = ({ embedded = false }) => {
     documents,
     navigateTo,
     selectDocument,
+    t,
   } = useApp();
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -116,8 +118,8 @@ export const GisMapPage: React.FC<GisMapPageProps> = ({ embedded = false }) => {
   const linkedDocument = documents.find(
     (d) =>
       (inspectionData?.surveyNumber && (d.surveyNumber === inspectionData.surveyNumber || d.surveyNumber === `${inspectionData.surveyNumber}/${inspectionData.subdivision}` || d.surveyNumber === inspectionData.kide)) ||
-      (inspectionData?.ulpin && d.ulpin === inspectionData.ulpin) ||
-      (activeParcel && (d.gisParcelId === activeParcel.parcelId || d.surveyNumber === activeParcel.surveyNumber))
+      (inspectionData?.ulpin && ((d as any).ulpin === inspectionData.ulpin || d.gisParcel?.parcelId === inspectionData.ulpin)) ||
+      (activeParcel && (d.gisParcel?.parcelId === activeParcel.parcelId || (d as any).gisParcelId === activeParcel.parcelId || d.surveyNumber === activeParcel.surveyNumber))
   );
 
   /* ---------------------------------------------------------
@@ -321,7 +323,7 @@ export const GisMapPage: React.FC<GisMapPageProps> = ({ embedded = false }) => {
         const ulpin =
           landData.ulpin ||
           wmsProperties?.ulpin ||
-          '';
+          generateUlpinFromCoordinates(lat, lng, district || 'Tamil Nadu');
 
         const ruralUrban =
           landData.rural_urban ||
@@ -607,7 +609,7 @@ export const GisMapPage: React.FC<GisMapPageProps> = ({ embedded = false }) => {
             <Search className="w-4 h-4 text-emerald-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search Tamil Nadu Survey # / Village..."
+              placeholder={t('mapSearchPlaceholder')}
               value={mapSearch}
               onChange={(e) => setMapSearch(e.target.value)}
               className="w-full pl-9 pr-3 py-1.5 text-xs text-slate-100 bg-slate-800/80 rounded-lg border border-slate-700 focus:outline-none focus:border-emerald-500 placeholder:text-slate-400"
@@ -637,7 +639,7 @@ export const GisMapPage: React.FC<GisMapPageProps> = ({ embedded = false }) => {
                 baseMapStyle === 'GOOGLE_HYBRID' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Hybrid
+              {t('mapHybrid')}
             </button>
             <button
               onClick={() => setBaseMapStyle('GOOGLE_SATELLITE')}
@@ -645,7 +647,7 @@ export const GisMapPage: React.FC<GisMapPageProps> = ({ embedded = false }) => {
                 baseMapStyle === 'GOOGLE_SATELLITE' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Satellite
+              {t('mapSatellite')}
             </button>
             <button
               onClick={() => setBaseMapStyle('OSM')}
@@ -653,7 +655,7 @@ export const GisMapPage: React.FC<GisMapPageProps> = ({ embedded = false }) => {
                 baseMapStyle === 'OSM' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Street
+              {t('mapStreet')}
             </button>
           </div>
 
@@ -668,17 +670,17 @@ export const GisMapPage: React.FC<GisMapPageProps> = ({ embedded = false }) => {
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">TNGIS FMB</span>
+            <span className="hidden sm:inline">{t('mapLayers')}</span>
           </button>
 
           {/* Locate My Land */}
           <button
             onClick={handleLocateMe}
-            title="Locate using GPS"
+            title={t('mapFindMe')}
             className="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-md transition-all"
           >
             <Navigation className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Find My Land</span>
+            <span className="hidden sm:inline">{t('mapFindMe')}</span>
           </button>
         </div>
       </div>
@@ -689,7 +691,7 @@ export const GisMapPage: React.FC<GisMapPageProps> = ({ embedded = false }) => {
           <button
             onClick={handleZoomIn}
             className="p-2 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors"
-            title="Zoom In"
+            title={t('mapZoomIn')}
           >
             <ZoomIn className="w-4 h-4" />
           </button>
@@ -697,7 +699,7 @@ export const GisMapPage: React.FC<GisMapPageProps> = ({ embedded = false }) => {
           <button
             onClick={handleZoomOut}
             className="p-2 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg transition-colors"
-            title="Zoom Out"
+            title={t('mapZoomOut')}
           >
             <ZoomOut className="w-4 h-4" />
           </button>
@@ -706,7 +708,7 @@ export const GisMapPage: React.FC<GisMapPageProps> = ({ embedded = false }) => {
         <button
           onClick={handleResetView}
           className="p-2.5 bg-slate-900/90 backdrop-blur-md hover:bg-slate-800 text-emerald-400 rounded-xl border border-slate-700/80 shadow-2xl transition-colors"
-          title="Reset View"
+          title={t('mapReset')}
         >
           <RotateCcw className="w-4 h-4" />
         </button>

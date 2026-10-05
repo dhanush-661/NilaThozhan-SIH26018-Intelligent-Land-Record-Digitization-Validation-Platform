@@ -12,6 +12,15 @@ import {
   TamilCadastralDetails,
 } from '../types';
 import { AppLanguage, TRANSLATIONS, TranslationKey } from '../i18n/translations';
+import {
+  StateOption,
+  getStateByCode,
+  getStateLanguage,
+  DEFAULT_STATE_CODE,
+  detectUserState,
+  findStateFromLocation,
+} from '../i18n/stateLanguages';
+import { applyUniversalLanguage } from '../services/universalTranslator';
 import { authService, UserProfileData } from '../services/authService';
 import { documentService } from '../services/documentService';
 import { workflowService } from '../services/workflowService';
@@ -85,9 +94,12 @@ interface AppContextType {
   statusFilter: string | null;
   currentScenario: DemoScenarioType;
 
-  // Language & i18n
+  // Language & State i18n
   currentLanguage: AppLanguage;
   setLanguage: (lang: AppLanguage) => void;
+  selectedState: StateOption;
+  setSelectedState: (code: string, customUniversalLang?: string) => void;
+  autoDetectedLocation: boolean;
   t: (key: TranslationKey, fallback?: string) => string;
 
   // Actions
@@ -145,12 +157,17 @@ interface AppContextType {
   uploadedFileUrl: string | null;
   uploadedFileName: string | null;
   attachFileToDocument: (docId: string, file: File) => string;
+  deleteDocument: (docId: string) => Promise<boolean>;
 
   // Supabase Auth Integration
   userProfile: UserProfileData | null;
   isLoading: boolean;
+  loginUser: (profile: UserProfileData) => Promise<void>;
   refreshData: () => Promise<void>;
   signOut: () => Promise<void>;
+  isWorkstationLocked: boolean;
+  lockWorkstation: () => void;
+  unlockWorkstation: () => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -173,18 +190,111 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [userProfile, setUserProfile] = useState<UserProfileData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-
-  // Language state with localStorage persistence (defaults to Tamil)
-  const [currentLanguage, setCurrentLanguage] = useState<AppLanguage>(() => {
-    const saved = localStorage.getItem('nila_language');
-    if (saved === 'ta' || saved === 'hi' || saved === 'en') return saved;
-    return 'ta';
+  const [isWorkstationLocked, setIsWorkstationLocked] = useState<boolean>(() => {
+    return sessionStorage.getItem('nila_workstation_locked') === 'true';
   });
 
-  const setLanguage = (lang: AppLanguage) => {
+  const lockWorkstation = useCallback(() => {
+    setIsWorkstationLocked(true);
+    sessionStorage.setItem('nila_workstation_locked', 'true');
+  }, []);
+
+  const unlockWorkstation = useCallback(() => {
+    setIsWorkstationLocked(false);
+    sessionStorage.removeItem('nila_workstation_locked');
+  }, []);
+
+  // Automatic Workstation Lock after 15 minutes of inactivity (resets on user interaction)
+  useEffect(() => {
+    if (!userProfile || isWorkstationLocked) return;
+
+    let timeoutId: NodeJS.Timeout;
+    const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000; // 15 mins
+
+    const resetTimer = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        lockWorkstation();
+      }, INACTIVITY_TIMEOUT_MS);
+    };
+
+    const activityEvents = ['mousedown', 'keydown', 'touchstart', 'scroll'];
+    activityEvents.forEach((evt) => window.addEventListener(evt, resetTimer, { passive: true }));
+    resetTimer();
+
+    return () => {
+      clearTimeout(timeoutId);
+      activityEvents.forEach((evt) => window.removeEventListener(evt, resetTimer));
+    };
+  }, [userProfile, isWorkstationLocked, lockWorkstation]);
+
+  // State & Jurisdiction management
+  const [selectedState, setSelectedStateInternal] = useState<StateOption>(() => {
+    const saved = localStorage.getItem('nila_selected_state') || DEFAULT_STATE_CODE;
+    return getStateByCode(saved);
+  });
+  const [autoDetectedLocation, setAutoDetectedLocation] = useState(false);
+
+  // Language state with localStorage persistence (defaults to state language)
+  const [currentLanguage, setCurrentLanguage] = useState<AppLanguage>(() => {
+    const savedLang = localStorage.getItem('nila_language');
+    if (savedLang === 'ta' || savedLang === 'hi' || savedLang === 'en') return savedLang;
+    const savedState = localStorage.getItem('nila_selected_state') || DEFAULT_STATE_CODE;
+    return getStateLanguage(savedState);
+  });
+
+  const setSelectedState = useCallback((code: string, customUniversalLang?: string) => {
+    const stateObj = getStateByCode(code);
+    setSelectedStateInternal(stateObj);
+    localStorage.setItem('nila_selected_state', code);
+
+    // Only adapt language to the state IF the user has NOT explicitly chosen a language
+    const isManual = localStorage.getItem('nila_language_manual') === 'true';
+    if (!isManual) {
+      const targetLang = stateObj.language;
+      setCurrentLanguage(targetLang);
+      localStorage.setItem('nila_language', targetLang);
+    }
+  }, []);
+
+  const setLanguage = useCallback((lang: AppLanguage) => {
     setCurrentLanguage(lang);
     localStorage.setItem('nila_language', lang);
-  };
+    localStorage.setItem('nila_language_manual', 'true'); // Lock user's explicit preference
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = lang;
+    }
+  }, []);
+
+  // Sync document.documentElement.lang on language change
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = currentLanguage;
+    }
+  }, [currentLanguage]);
+
+  // Automatic geolocation & state auto-detection on first visit (respects manual choice)
+  useEffect(() => {
+    const runAutoDetection = async () => {
+      try {
+        const isManual = localStorage.getItem('nila_language_manual') === 'true';
+        const { state, autoDetected } = await detectUserState();
+        if (autoDetected) {
+          setSelectedStateInternal(state);
+          setAutoDetectedLocation(true);
+          localStorage.setItem('nila_selected_state', state.code);
+          if (!isManual) {
+            const autoLang = state.language;
+            setCurrentLanguage(autoLang);
+            localStorage.setItem('nila_language', autoLang);
+          }
+        }
+      } catch (err) {
+        console.warn('Auto-location detection skipped:', err);
+      }
+    };
+    runAutoDetection();
+  }, []);
 
   const t = (key: TranslationKey, fallback?: string): string => {
     const langDict = TRANSLATIONS[currentLanguage] || TRANSLATIONS.en;
@@ -241,40 +351,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             activeUserRole = profile.role;
           }
         } else {
-          // Default to Citizen demo profile
-          const p = ROLE_PROFILES.CITIZEN;
-          activeProfile = {
-            id: '11111111-1111-1111-1111-111111111111',
-            email: DEMO_CREDENTIALS.CITIZEN.email,
-            fullName: p.name,
-            role: 'CITIZEN',
-            department: p.department,
-            designation: p.roleTitle,
-            location: p.location,
-            isActive: true,
-          };
-          activeUserRole = 'CITIZEN';
+          // Check for existing authenticated session in localStorage
+          const savedUserStr = localStorage.getItem('nila_active_user');
+          if (savedUserStr) {
+            try {
+              const parsed = JSON.parse(savedUserStr);
+              if (parsed?.id && parsed?.role && parsed?.email) {
+                activeProfile = parsed;
+                activeUserRole = parsed.role;
+              }
+            } catch {
+              localStorage.removeItem('nila_active_user');
+            }
+          }
         }
       } catch (e) {
-        console.warn('Auth session check completed with demo profile fallback:', e);
-        const p = ROLE_PROFILES.CITIZEN;
-        activeProfile = {
-          id: '11111111-1111-1111-1111-111111111111',
-          email: DEMO_CREDENTIALS.CITIZEN.email,
-          fullName: p.name,
-          role: 'CITIZEN',
-          department: p.department,
-          designation: p.roleTitle,
-          location: p.location,
-          isActive: true,
-        };
-        activeUserRole = 'CITIZEN';
+        console.warn('Auth session check encountered error:', e);
       } finally {
         if (isMounted) {
           setUserProfile(activeProfile);
-          setCurrentRole(activeUserRole);
+          if (activeProfile) {
+            setCurrentRole(activeUserRole);
+            if (activeProfile.location) {
+              const matched = findStateFromLocation(activeProfile.location);
+              if (matched) {
+                setSelectedState(matched.code);
+              }
+            }
+            refreshData(activeUserRole, activeProfile);
+          }
           setIsLoading(false);
-          refreshData(activeUserRole, activeProfile);
         }
       }
     }
@@ -292,49 +398,74 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, []);
 
-  // When role changes, switch profile & enforce role views
-  const setRole = async (newRole: UserRole) => {
+  // Authenticate user into specific role and persist session
+  const loginUser = async (profile: UserProfileData) => {
     setIsLoading(true);
-    setCurrentRole(newRole);
-    
-    const p = ROLE_PROFILES[newRole];
-    const demoId =
-      newRole === 'CITIZEN'
-        ? '11111111-1111-1111-1111-111111111111'
-        : newRole === 'OFFICER'
-        ? '22222222-2222-2222-2222-222222222222'
-        : '33333333-3333-3333-3333-333333333333';
+    setUserProfile(profile);
+    setCurrentRole(profile.role);
+    localStorage.setItem('nila_active_user', JSON.stringify(profile));
 
-    const newProfile: UserProfileData = {
-      id: demoId,
-      email: DEMO_CREDENTIALS[newRole]?.email || `${newRole.toLowerCase()}@nilathozhan.tn.gov.in`,
-      fullName: p.name,
-      role: newRole,
-      department: p.department,
-      designation: p.roleTitle,
-      location: p.location,
-      isActive: true,
-    };
-
-    setUserProfile(newProfile);
-    setIsLoading(false);
-    await refreshData(newRole, newProfile);
+    // Automatically adapt state and language to user's registered jurisdiction
+    if (profile.location) {
+      const matched = findStateFromLocation(profile.location);
+      if (matched) {
+        setSelectedState(matched.code);
+      }
+    }
 
     // Redirect to primary view for role
-    if (newRole === 'CITIZEN') {
+    if (profile.role === 'CITIZEN') {
       setActiveTab('my-documents');
-    } else if (newRole === 'OFFICER') {
+    } else if (profile.role === 'OFFICER') {
       setActiveTab('queue');
     } else {
       setActiveTab('approvals');
     }
+
+    await refreshData(profile.role, profile);
+    setIsLoading(false);
+  };
+
+  // Prevent arbitrary role switching! Role is strictly locked to the authenticated user's credentials
+  const setRole = async (newRole: UserRole) => {
+    if (userProfile && userProfile.role !== newRole) {
+      console.warn(`[RBAC Security Alert] Unauthorized role switch blocked: User is authenticated as '${userProfile.role}' and cannot switch to '${newRole}' without logging in.`);
+      return;
+    }
+    setCurrentRole(newRole);
   };
 
   const signOut = async () => {
     await authService.signOut();
+    localStorage.removeItem('nila_active_user');
+    sessionStorage.removeItem('nila_workstation_locked');
+    setIsWorkstationLocked(false);
     setUserProfile(null);
     setDocuments([]);
+    setGisParcels([]);
   };
+
+  const deleteDocument = useCallback(
+    async (docId: string): Promise<boolean> => {
+      try {
+        setDocuments((prev) => prev.filter((d) => d.id !== docId));
+        setSelectedDocumentId((prevId) => {
+          if (prevId === docId) {
+            const remaining = documents.filter((d) => d.id !== docId);
+            return remaining.length > 0 ? remaining[0].id : null;
+          }
+          return prevId;
+        });
+
+        await documentService.deleteDocument(docId);
+        return true;
+      } catch (err) {
+        console.error('Failed to delete document:', err);
+        return false;
+      }
+    },
+    [documents]
+  );
 
   const attachFileToDocument = (docId: string, file: File): string => {
     const url = URL.createObjectURL(file);
@@ -691,6 +822,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         activeTab,
         currentLanguage,
         setLanguage,
+        selectedState,
+        setSelectedState,
+        autoDetectedLocation,
         t,
         documents,
         selectedDocumentId,
@@ -727,14 +861,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         submitSupportTicket,
         downloadFile,
         uploadNewDocument,
+        deleteDocument,
         markNotificationRead,
         markAllNotificationsRead,
         openSearchModal,
         closeSearchModal,
         userProfile,
         isLoading,
+        loginUser,
         refreshData,
         signOut,
+        isWorkstationLocked,
+        lockWorkstation,
+        unlockWorkstation,
       }}
     >
       {children}
